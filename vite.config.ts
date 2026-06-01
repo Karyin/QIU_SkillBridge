@@ -5,7 +5,7 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
-    base: ''/QIU_SkillBridge/'",
+    base: '/QIU_SkillBridge/',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
