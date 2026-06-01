@@ -1,0 +1,184 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-display: "Space Grotesk", sans-serif;
+}
+
+/* Base Body settings supporting reactive light and dark colors cleanly */
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-sans);
+  transition: background-color 0.3s ease, color 0.3s ease;
+  min-height: 100vh;
+}
+
+/* Starry Cosmos (Dark) Theme */
+body.dark {
+  background-color: #0b0f19;
+  background-image: 
+    radial-gradient(circle at 10% 20%, rgba(29, 78, 216, 0.08) 0%, transparent 40%),
+    radial-gradient(circle at 80% 80%, rgba(99, 102, 241, 0.08) 0%, transparent 40%);
+  color: #f8fafc;
+}
+
+/* Sunny Campus (Light) Theme */
+body.light {
+  background-color: #f4f6fa;
+  background-image: 
+    radial-gradient(circle at 10% 20%, rgba(219, 234, 254, 0.4) 0%, transparent 45%),
+    radial-gradient(circle at 90% 80%, rgba(224, 231, 255, 0.4) 0%, transparent 45%);
+  color: #0f172a;
+}
+
+/* Glass panel background helper based on current active themes */
+.glass-panel {
+  transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+body.dark .glass-panel {
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+body.light .glass-panel {
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03);
+}
+
+/* Dynamic text adjustment according to theme modes */
+body.light p.text-slate-400,
+body.light p.text-slate-455,
+body.light p.text-slate-405,
+body.light p.text-slate-200 {
+  color: #475569 !important;
+}
+
+body.light p.text-slate-300 {
+  color: #1e293b !important;
+}
+
+body.light p.text-slate-505 {
+  color: #64748b !important;
+}
+
+body.light span.text-slate-400,
+body.light span.text-slate-500,
+body.light span.text-slate-300,
+body.light span.text-slate-200 {
+  color: #475569 !important;
+}
+
+body.light label {
+  color: #334155 !important;
+}
+
+body.light h1,
+body.light h2,
+body.light h3,
+body.light h4 {
+  color: #1e293b !important;
+}
+
+body.light .force-light-text {
+  color: #ffffff !important;
+}
+
+body.light input,
+body.light select,
+body.light textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+body.light input::placeholder,
+body.light textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+body.light .bg-slate-900,
+body.light .bg-slate-900\/40,
+body.light .bg-slate-950\/30,
+body.light .bg-slate-915,
+body.light .bg-slate-952 {
+  background-color: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.07) !important;
+}
+
+body.light .bg-slate-952 {
+  background-color: #f8fafc !important;
+}
+
+body.light .bg-slate-950,
+body.light .bg-slate-955,
+body.light .bg-slate-950\/70 {
+  background-color: #f1f5f9 !important;
+  border-color: rgba(0, 0, 0, 0.06) !important;
+  color: #0f172a !important;
+}
+
+body.light footer {
+  background-color: #ffffff !important;
+  color: #64748b !important;
+  border-color: rgba(0, 0, 0, 0.06) !important;
+}
+
+body.light footer h1,
+body.light footer span,
+body.light footer p {
+  color: #0f172a !important;
+}
+
+body.light footer button {
+  color: #475569 !important;
+}
+
+body.light button.text-slate-200 {
+  color: #475569 !important;
+}
+
+body.light button.text-slate-200:hover {
+  color: #2563eb !important;
+}
+
+body.light footer button:hover {
+  color: #2563eb !important;
+}
+
+/* Custom animated transitions */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Hide native scrollbars on specific lists while preserving touch overflow scrolling */
+.scrollbar-none::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+.scrollbar-none {
+  -ms-overflow-style: none !important;  /* IE and Edge */
+  scrollbar-width: none !important;  /* Firefox */
+}
+
+/* Alternative alias for safety */
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+.no-scrollbar {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}

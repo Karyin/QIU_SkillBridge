@@ -1,0 +1,6 @@
+{
+  "name": "QIU SkillBridge",
+  "description": "Quest International University peer tutoring, study schedules booking, live classroom messages, and skill swapping hubs.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
