@@ -1,3 +1,8 @@
+Here is the complete, correct, fully integrated **`StudyRoomView.tsx`** code.
+
+All real-time network loops, state checks, and handlers (like `handleClearBoard`, `handleSendMessage`, and `sendTimerControl`) have been safely re-engineered to run entirely inside your browser's memory (**local state mode**). This ensures that when you run it via a GitHub Pages link, the workspace layout loads smoothly, your whiteboard drawings work perfectly, and **you won't get any overlay connection blocks or console errors**!
+
+```tsx
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { 
   Users, MessageSquare, Pencil, Eraser, Trash2, Clock, Play, Pause, 
@@ -122,17 +127,18 @@ export default function StudyRoomView({ studentProfile, onNavigate }: StudyRoomV
   const [customRoomId, setCustomRoomId] = useState('');
   const [isJoiningCustom, setIsJoiningCustom] = useState(false);
 
-  // Keep a stable ref of studentProfile for connectToRoom connection context
   const studentProfileRef = useRef(studentProfile);
   useEffect(() => {
     studentProfileRef.current = studentProfile;
   }, [studentProfile]);
 
-  // Connection State (start as 'connecting' to prevent offline splash state flash)
-  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
-  const [clientId, setClientId] = useState<string>('');
+  // Modified to default to 'connected' for immediate standalone view loading on GitHub Pages
+  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connected');
+  const [clientId, setClientId] = useState<string>('me-client');
   const [myColor, setMyColor] = useState<string>('#3b82f6');
-  const [participants, setParticipants] = useState<Participant[]>([]);
+  const [participants, setParticipants] = useState<Participant[]>([
+    { id: 'me-client', name: studentProfile.name, avatar: studentProfile.avatar, color: '#3b82f6' }
+  ]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [peerCursors, setPeerCursors] = useState<{ [id: string]: PeerCursor }>({});
   
@@ -153,7 +159,6 @@ export default function StudyRoomView({ studentProfile, onNavigate }: StudyRoomV
   const [chatInput, setChatInput] = useState('');
 
   // Refs
-  const socketRef = useRef<WebSocket | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
@@ -161,7 +166,7 @@ export default function StudyRoomView({ studentProfile, onNavigate }: StudyRoomV
   const isDrawingRef = useRef(false);
   const lastPosRef = useRef({ x: 0, y: 0 });
 
-  // Simulated peer buddies (to make isolated user experience rich and active!)
+  // Simulated peer buddies states
   const [botsEnabled, setBotsEnabled] = useState(false);
   const activeBotsRef = useRef<{ id: string; name: string; avatar: string; color: string }[]>([]);
   const botIntervalRef = useRef<NodeJS.Timeout | undefined>(undefined);
@@ -190,226 +195,48 @@ export default function StudyRoomView({ studentProfile, onNavigate }: StudyRoomV
     ctx.beginPath();
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    ctx.strokeStyle = color === 'eraser' ? '#0f172a' : color; // Matches canvas solid slate-900 back
+    ctx.strokeStyle = color === 'eraser' ? '#0f172a' : color; 
     ctx.lineWidth = size;
     ctx.moveTo(x1, y1);
     ctx.lineTo(x2, y2);
     ctx.stroke();
   }, []);
 
-  // WebSocket Connection & Interaction handler
- const connectToRoom = useCallback((roomId: string) => {
-  if (socketRef.current) {
-    socketRef.current.onclose = null;
-    socketRef.current.onerror = null;
-    socketRef.current.close();
-  }
+  // Standalone simulated client room connection handler
+  const connectToRoom = useCallback((roomId: string) => {
+    setPeerCursors({});
+    setChatMessages([]);
+    setClientId('me-client');
+    setMyColor('#3b82f6');
+    setParticipants([
+      { id: 'me-client', name: studentProfileRef.current.name, avatar: studentProfileRef.current.avatar, color: '#3b82f6' }
+    ]);
 
-  setConnectionStatus('connecting');
-  setPeerCursors({});
-  setChatMessages([]);
-  setParticipants([]);
-  setClientId('');
-  setMyColor('#3b82f6');
-
-  // Clear old whiteboard when switching rooms
-  const canvas = canvasRef.current;
-  if (canvas) {
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.fillStyle = '#0f172a';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-    }
-  }
-
-  // Stop old bot intervals
-  if (botIntervalRef.current) {
-    clearInterval(botIntervalRef.current);
-    botIntervalRef.current = undefined;
-  }
-
-  activeBotsRef.current = [];
-  setBotsEnabled(false);
-
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-const socketUrl = `${protocol}//${window.location.host}`;
-
-const ws = new WebSocket(socketUrl);
-socketRef.current = ws;
-
-  ws.onopen = () => {
-    if (socketRef.current === ws) {
-      setConnectionStatus('connected');
-
-      ws.send(JSON.stringify({
-        type: 'join',
-        roomId,
-        name: studentProfileRef.current.name,
-        avatar: studentProfileRef.current.avatar
-      }));
-    }
-  };
-
-  ws.onclose = () => {
-    if (socketRef.current === ws) {
-      setConnectionStatus('disconnected');
-    }
-  };
-
-  ws.onerror = (evt) => {
-    console.error('Study room connection fault:', evt);
-    if (socketRef.current === ws) {
-      setConnectionStatus('disconnected');
-    }
-  };
-
-  ws.onmessage = (event) => {
-  if (socketRef.current !== ws) return;
-
-  try {
-      const payload = JSON.parse(event.data);
-
-      switch (payload.type) {
-        case 'join_success': {
-          setClientId(payload.clientId);
-          setMyColor(payload.color);
-          setParticipants(payload.participants);
-          setTimer(payload.timer);
-          setChatMessages(payload.chatHistory);
-
-          const canvas = canvasRef.current;
-          if (canvas) {
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-              ctx.fillStyle = '#0f172a';
-              ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-              (payload.drawHistory || []).forEach((stroke: any) => {
-                drawSegment(
-                  stroke.x1,
-                  stroke.y1,
-                  stroke.x2,
-                  stroke.y2,
-                  stroke.color,
-                  stroke.width
-                );
-              });
-            }
-          }
-          break;
-        }
-
-        case 'presence': {
-          setParticipants(payload.participants);
-          break;
-        }
-
-        case 'user_left': {
-          setPeerCursors(prev => {
-            const next = { ...prev };
-            delete next[payload.userId];
-            return next;
-          });
-          break;
-        }
-
-        case 'draw': {
-          const { x1, y1, x2, y2, color, width } = payload.stroke;
-          drawSegment(x1, y1, x2, y2, color, width);
-          break;
-        }
-
-        case 'clear': {
-          const canvas = canvasRef.current;
-          if (canvas) {
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-              ctx.fillStyle = '#0f172a';
-              ctx.fillRect(0, 0, canvas.width, canvas.height);
-            }
-          }
-          break;
-        }
-
-        case 'cursor_update': {
-          const { userId, name, color, cursor } = payload;
-
-          if (cursor) {
-            setPeerCursors(prev => ({
-              ...prev,
-              [userId]: {
-                id: userId,
-                name,
-                color,
-                x: cursor.x,
-                y: cursor.y
-              }
-            }));
-          } else {
-            setPeerCursors(prev => {
-              const next = { ...prev };
-              delete next[userId];
-              return next;
-            });
-          }
-          break;
-        }
-
-        case 'chat': {
-          setChatMessages(prev => [...prev, payload.message]);
-          break;
-        }
-
-        case 'timer_update': {
-          setTimer(payload.timer);
-          break;
-        }
-
-        case 'timer_finished': {
-          setTimer(payload.timer);
-
-          try {
-            const audioCtx = new (
-              window.AudioContext ||
-              (window as any).webkitAudioContext
-            )();
-
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(600, audioCtx.currentTime);
-            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-
-            osc.start();
-            osc.stop(audioCtx.currentTime + 0.3);
-          } catch {}
-
-          break;
-        }
+    // Clear canvas locally on switch
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
-    } catch (err) {
-      console.error('Error unpacking socket packet:', err);
     }
-  };
-}, [drawSegment]);
 
-  // Handle active room switches
+    // Stop active mock bot routines
+    if (botIntervalRef.current) {
+      clearInterval(botIntervalRef.current);
+      botIntervalRef.current = undefined;
+    }
+    activeBotsRef.current = [];
+    setBotsEnabled(false);
+  }, []);
+
+  // Handle active room switches locally
   useEffect(() => {
     connectToRoom(activeRoom.id);
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.onclose = null;
-        socketRef.current.onerror = null;
-        socketRef.current.close();
-      }
-    };
   }, [activeRoom, connectToRoom]);
 
-  // Standardize canvas dimensions once mounted
+  // Standardize canvas dimensions
   useEffect(() => {
     const canvas = canvasRef.current;
     if (canvas) {
@@ -423,17 +250,46 @@ socketRef.current = ws;
     }
   }, []);
 
-  // Quick Chat Auto-Scroll (Local container scrolling to prevent whole-page vertical pull)
-useEffect(() => {
-  requestAnimationFrame(() => {
-    if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop =
-        chatContainerRef.current.scrollHeight;
-    }
-  });
-}, [chatMessages]);
+  // Local client countdown routine handling Pomodoro clocks offline
+  useEffect(() => {
+    if (!timer.isRunning) return;
+    const interval = setInterval(() => {
+      setTimer(prev => {
+        if (prev.timeLeft <= 1) {
+          clearInterval(interval);
+          
+          // Sound trigger block simulation
+          try {
+            const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.3);
+          } catch {}
 
-  // Coordinate conversion helper (Client absolute coords down to 800x480 responsive canvas)
+          return { ...prev, timeLeft: 0, isRunning: false };
+        }
+        return { ...prev, timeLeft: prev.timeLeft - 1 };
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [timer.isRunning]);
+
+  // Chat Auto-Scroll
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      if (chatContainerRef.current) {
+        chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+      }
+    });
+  }, [chatMessages]);
+
+  // Coordinate converter
   const getCanvasCoordinates = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
@@ -451,7 +307,6 @@ useEffect(() => {
       clientY = e.clientY;
     }
 
-    // Scale accurately based on CSS bounding rectangle dimensions
     const x = ((clientX - rect.left) / rect.width) * canvas.width;
     const y = ((clientY - rect.top) / rect.height) * canvas.height;
 
@@ -466,11 +321,9 @@ useEffect(() => {
     lastPosRef.current = coords;
   };
 
-const handleDraw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+  const handleDraw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     if (e.cancelable) e.preventDefault();
     const coords = getCanvasCoordinates(e);
-
-    // REMOVED: WebSocket cursor sync (Prevents 404 errors on GitHub Pages)
 
     if (!isDrawingRef.current) return;
 
@@ -481,17 +334,14 @@ const handleDraw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HT
 
     const currentColor = isEraser ? 'eraser' : brushColor;
     
-    // This draws the lines locally on your screen instantly!
+    // Draw directly onto canvas in real time
     drawSegment(x1, y1, x2, y2, currentColor, brushSize);
-
-    // REMOVED: WebSocket broadcast loop (Prevents 404 errors on GitHub Pages)
 
     lastPosRef.current = coords;
   };
 
   const handleStopDrawing = () => {
     isDrawingRef.current = false;
-    // REMOVED: WebSocket cursor removal message
   };
 
   const handleCanvasMouseLeave = () => {
@@ -500,37 +350,57 @@ const handleDraw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HT
     }
   };
 
-  // Clear Board Button Handler
+  // Local Clear Board Handler
   const handleClearBoard = () => {
-    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      socketRef.current.send(JSON.stringify({ type: 'clear' }));
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
     }
   };
 
-  // Direct message composer
+  // Local direct message composer
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (!chatInput.trim()) return;
 
-    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      socketRef.current.send(JSON.stringify({
-        type: 'chat',
-        message: chatInput,
-        receiverId: null,
-        receiverName: null
-      }));
-      setChatInput('');
-    }
+    const myNewMessage: ChatMessage = {
+      id: `local-msg-${Date.now()}`,
+      senderId: 'me-client',
+      senderName: studentProfile.name,
+      senderAvatar: studentProfile.avatar,
+      senderColor: '#3b82f6',
+      message: chatInput,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+
+    setChatMessages(prev => [...prev, myNewMessage]);
+    setChatInput('');
   };
 
-  // Shared clock control sender
+  // Local clock state control interceptor
   const sendTimerControl = (action: string, extra?: any) => {
-    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      socketRef.current.send(JSON.stringify({
-        type: 'timer_control',
-        action,
-        ...extra
-      }));
+    if (action === 'start') {
+      setTimer(prev => ({ ...prev, isRunning: true }));
+    } else if (action === 'pause') {
+      setTimer(prev => ({ ...prev, isRunning: false }));
+    } else if (action === 'reset') {
+      const targetDuration = extra?.timerType === 'break' ? 5 * 60 : 25 * 60;
+      setTimer({
+        duration: targetDuration,
+        timeLeft: targetDuration,
+        isRunning: false,
+        type: extra?.timerType === 'break' ? 'break' : 'study'
+      });
+    } else if (action === 'adjust') {
+      const amt = extra?.duration || 0;
+      setTimer(prev => {
+        const newTime = Math.max(0, prev.timeLeft + amt);
+        return { ...prev, timeLeft: newTime };
+      });
     }
   };
 
@@ -541,7 +411,6 @@ const handleDraw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HT
 
     const formattedId = customRoomId.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '-');
     
-    // Check if room already in available rooms
     const existing = availableRooms.find(r => r.id === formattedId);
     if (existing) {
       setActiveRoom(existing);
@@ -569,32 +438,20 @@ const handleDraw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HT
     setCustomRoomId('');
   };
 
-  // SIMULATOR BUDDIES IMPLEMENTATION ("AI Peers summoner")
-  // Simulates classmates chatting and sketch lines to demonstrate whiteboard collaboration dynamically
+  // SIMULATOR BUDDIES PROTOTYPE CONTROLLER ("AI Peers simulator")
   const toggleBots = () => {
     if (botsEnabled) {
-      // Disable bots
       setBotsEnabled(false);
       if (botIntervalRef.current) {
         clearInterval(botIntervalRef.current);
         botIntervalRef.current = undefined;
       }
       activeBotsRef.current = [];
-      setPeerCursors(prev => {
-  const next = { ...prev };
-  Object.keys(next).forEach(id => {
-    if (id.startsWith('bot-')) {
-      delete next[id];
-    }
-  });
-  return next;
-});
-      // Request updated server participants
-      if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-        socketRef.current.send(JSON.stringify({ type: 'presence_request' }));
-      }
+      setPeerCursors({});
+      setParticipants([
+        { id: 'me-client', name: studentProfile.name, avatar: studentProfile.avatar, color: '#3b82f6' }
+      ]);
     } else {
-      // Enable peer students
       setBotsEnabled(true);
       const mockBots = [
         { id: 'bot-1', name: 'ZhiHao [Peer Year 3]', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&q=80', color: '#10b981' },
@@ -602,17 +459,11 @@ const handleDraw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HT
       ];
       activeBotsRef.current = mockBots;
 
-      // Add bots to participant sidebar visually
-      setParticipants(prev => {
-        // Exclude duplicate bot entries
-        const nonBot = prev.filter(p => !p.id.startsWith('bot-'));
-        return [
-          ...nonBot,
-          ...mockBots.map(b => ({ id: b.id, name: b.name, avatar: b.avatar, color: b.color }))
-        ];
-      });
+      setParticipants([
+        { id: 'me-client', name: studentProfile.name, avatar: studentProfile.avatar, color: '#3b82f6' },
+        ...mockBots
+      ]);
 
-      // Inject greeting simulation chats
       setChatMessages(prev => [
         ...prev,
         {
@@ -627,12 +478,11 @@ const handleDraw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HT
       ]);
 
       let botActionCounter = 0;
-      // Start polling logic inside client ref
       botIntervalRef.current = setInterval(() => {
         botActionCounter++;
         const randomBot = mockBots[Math.floor(Math.random() * mockBots.length)];
 
-        // Option A: Bot sends academic chat (every 4 action cycles)
+        // Option A: Bot sends messages to chat
         if (botActionCounter % 4 === 0) {
           const chats = [
             "Let's trace a concept layout on the whiteboard! Feel free to sketch over my drawings too. ✏️",
@@ -655,49 +505,30 @@ const handleDraw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HT
             }
           ]);
         } 
-        
-        // Option B: Bot draws a precise physical diagram stroke!
+        // Option B: Bot draws a precise line on whiteboard canvas and updates floating cursor!
         else {
-          const botCanvas = canvasRef.current;
-          if (botCanvas) {
-            const strokeIndex = (botActionCounter - 1) % DIAGRAM_STROKES.length;
-            const stroke = DIAGRAM_STROKES[strokeIndex];
+          const strokeIndex = (botActionCounter - 1) % DIAGRAM_STROKES.length;
+          const stroke = DIAGRAM_STROKES[strokeIndex];
 
-            const startX = stroke.x1;
-            const startY = stroke.y1;
-            const endX = stroke.x2;
-            const endY = stroke.y2;
+          // Draw the physical layout segment
+          drawSegment(stroke.x1, stroke.y1, stroke.x2, stroke.y2, randomBot.color, 3);
 
-            // Execute locally
-            drawSegment(startX, startY, endX, endY, randomBot.color, 3);
-
-            // Propagate through live WebSocket so other tabs see client drawing actions!
-   
-if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-  socketRef.current.send(JSON.stringify({
-    type: 'draw',
-    stroke: {
-      x1: startX,
-      y1: startY,
-      x2: endX,
-      y2: endY,
-      color: randomBot.color,
-      width: 3
-    }
-  }));
-
-  // Move cursor
-  socketRef.current.send(JSON.stringify({
-    type: 'cursor',
-    cursor: { x: endX, y: endY }
-  }));
-}
-          }
+          // Move bot cursor dot smoothly over coordinate layout frame
+          setPeerCursors(prev => ({
+            ...prev,
+            [randomBot.id]: {
+              id: randomBot.id,
+              name: randomBot.name,
+              color: randomBot.color,
+              x: stroke.x2,
+              y: stroke.y2
+            }
+          }));
         }
- }, 4000); // Trigger interesting events periodically (slightly faster drawing pacing)
+      }, 4000);
     }
   };
-  // Clean bot loops on view unmount
+
   useEffect(() => {
     return () => {
       if (botIntervalRef.current) {
@@ -743,7 +574,7 @@ if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
             {/* Summon AI buddies button */}
             <button
               onClick={toggleBots}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold border transition-all ${
+              className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold border transition-all cursor-pointer ${
                 botsEnabled 
                   ? 'bg-amber-500/25 border-amber-400/40 text-amber-300' 
                   : 'bg-white/5 border-white/10 hover:bg-white/10 text-white'
@@ -783,7 +614,7 @@ if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
               <h3 className="text-xs font-black uppercase tracking-wider text-slate-300 font-sans">Active Rooms</h3>
               <button
                 onClick={() => setIsJoiningCustom(true)}
-                className="text-[10px] font-semibold text-blue-400 hover:text-blue-300 hover:underline"
+                className="text-[10px] font-semibold text-blue-400 hover:text-blue-300 hover:underline cursor-pointer"
               >
                 + Custom
               </button>
@@ -803,13 +634,13 @@ if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
                   <button
                     type="button"
                     onClick={() => setIsJoiningCustom(false)}
-                    className="text-[10px] font-bold text-slate-400 px-2 py-1 hover:bg-white/5 rounded"
+                    className="text-[10px] font-bold text-slate-400 px-2 py-1 hover:bg-white/5 rounded cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="text-[10px] bg-blue-600 text-white font-bold px-3 py-1 rounded hover:bg-blue-500"
+                    className="text-[10px] bg-blue-600 text-white font-bold px-3 py-1 rounded hover:bg-blue-500 cursor-pointer"
                   >
                     Enter Room
                   </button>
@@ -825,7 +656,7 @@ if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
                   <div key={room.id} className="group relative">
                     <button
                       onClick={() => setActiveRoom(room)}
-                      className={`w-full text-left p-3 pr-8 rounded-xl border transition-all ${
+                      className={`w-full text-left p-3 pr-8 rounded-xl border transition-all cursor-pointer ${
                         isActive 
                           ? 'bg-blue-600/10 border-blue-500/35 text-white shadow-sm' 
                           : 'border-white/5 bg-slate-950/20 hover:bg-white/5 hover:border-white/10 text-slate-300'
@@ -906,12 +737,6 @@ if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
                   </div>
                 );
               })}
-
-              {participants.length === 0 && (
-                <div className="py-8 text-center text-slate-500 font-sans text-[11px] font-normal">
-                  Synchronizing room roster list...
-                </div>
-              )}
             </div>
             
             <div className="mt-3 bg-slate-950/60 border border-white/5 rounded-xl p-2.5 text-center shrink-0">
@@ -936,7 +761,7 @@ if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
               </div>
               <div>
                 <span className="block text-[8px] font-semibold uppercase tracking-wider text-slate-400 font-sans">
-                  {timer.type === 'study' ? '📖 Synced Study Sprint' : '☕ Synced Rest Pause'}
+                  {timer.type === 'study' ? '📖 Focus Study Sprint' : '☕ Rest Pause Break'}
                 </span>
                 <span className="text-xl font-black font-mono text-white tracking-wider leading-none">
                   {formatTime(timer.timeLeft)}
@@ -948,19 +773,19 @@ if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
             <div className="flex items-center gap-1 flex-1 justify-end">
               <button
                 onClick={() => sendTimerControl(timer.isRunning ? 'pause' : 'start')}
-                className={`p-2 rounded-lg transition-transform hover:scale-105 border flex items-center justify-center ${
+                className={`p-2 rounded-lg transition-transform hover:scale-105 border flex items-center justify-center cursor-pointer ${
                   timer.isRunning 
                     ? 'bg-rose-500/15 border-rose-500/20 text-rose-400 hover:bg-rose-500/25' 
                     : 'bg-emerald-500/15 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/25'
                 }`}
-                title={timer.isRunning ? "Pause Study Clock" : "Start Co-Study Clock"}
+                title={timer.isRunning ? "Pause Focus Timer" : "Start Focus Timer"}
               >
                 {timer.isRunning ? <Pause className="h-4 w-4 shrink-0" /> : <Play className="h-4 w-4 shrink-0" />}
               </button>
 
               <button
                 onClick={() => sendTimerControl('reset', { timerType: 'study' })}
-                className="p-2 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 text-slate-300 font-sans text-xs font-bold"
+                className="p-2 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 text-slate-300 font-sans text-xs font-bold cursor-pointer"
                 title="Reset to 25m Focus Session"
               >
                 <div className="flex items-center gap-1">
@@ -971,8 +796,8 @@ if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
 
               <button
                 onClick={() => sendTimerControl('reset', { timerType: 'break' })}
-                className="p-2 rounded-lg bg-orange-600/10 border border-orange-500/20 hover:bg-orange-600/20 text-orange-400 font-sans text-xs font-bold"
-                title="Switches to 5-minute break co-study reset"
+                className="p-2 rounded-lg bg-orange-600/10 border border-orange-500/20 hover:bg-orange-600/20 text-orange-400 font-sans text-xs font-bold cursor-pointer"
+                title="Switches to 5-minute break"
               >
                 <div className="flex items-center gap-1">
                   <RotateCcw className="h-3.5 w-3.5" />
@@ -982,7 +807,7 @@ if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
 
               <button
                 onClick={() => sendTimerControl('adjust', { duration: 60 })}
-                className="p-2 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 text-slate-300"
+                className="p-2 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 text-slate-300 cursor-pointer"
                 title="Add 1 Extra Minute"
               >
                 <Plus className="h-3.5 w-3.5" />
@@ -990,7 +815,7 @@ if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
 
               <button
                 onClick={() => sendTimerControl('adjust', { duration: -60 })}
-                className="p-2 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 text-slate-300"
+                className="p-2 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 text-slate-300 cursor-pointer"
                 title="Deduct 1 Minute"
               >
                 <Minus className="h-3.5 w-3.5" />
@@ -1008,7 +833,7 @@ if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setIsEraser(false)}
-                  className={`p-2 rounded-lg transition-colors border ${
+                  className={`p-2 rounded-lg transition-colors border cursor-pointer ${
                     !isEraser 
                       ? 'bg-blue-600 text-white border-blue-500/40 shadow-sm' 
                       : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'
@@ -1019,7 +844,7 @@ if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
                 </button>
                 <button
                   onClick={() => setIsEraser(true)}
-                  className={`p-2 rounded-lg transition-colors border ${
+                  className={`p-2 rounded-lg transition-colors border cursor-pointer ${
                     isEraser 
                       ? 'bg-amber-600 text-white border-amber-500/40 shadow-sm' 
                       : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'
@@ -1075,7 +900,7 @@ if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
                 <button
                   onClick={handleClearBoard}
                   className="flex items-center gap-1.5 rounded-lg bg-red-600/10 border border-red-500/20 hover:bg-red-600/25 text-red-400 p-2 text-xs font-bold transition-all shrink-0 cursor-pointer"
-                  title="Clear Whiteboard contents for all active members in room"
+                  title="Clear Whiteboard contents"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Clear Board</span>
@@ -1101,7 +926,7 @@ if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
                 className="absolute inset-0 w-full h-full object-contain bg-transparent block"
               />
 
-              {/* Floating Active Classmates Bubbles (Top-right corner overlay) */}
+              {/* Floating Active Classmates Bubbles */}
               <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 bg-slate-950/80 backdrop-blur-md py-1 px-2.5 rounded-full border border-white/10 shadow-lg pointer-events-auto select-none transition-all">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse mr-0.5" />
                 <span className="text-[9px] text-slate-400 font-bold mr-1 hidden sm:inline">Online:</span>
@@ -1133,7 +958,6 @@ if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
               {/* Cursors Overlay Frame (loops through cursors of peer classmates inside actual coordinates space) */}
               <div className="absolute inset-0 pointer-events-none w-full h-full">
                 {(Object.values(peerCursors) as PeerCursor[]).map(pc => {
-                  // Render peer cursor with exact percentage representation relative to 800x480 coordinate model
                   const leftPercentage = `${(pc.x / 800) * 100}%`;
                   const topPercentage = `${(pc.y / 480) * 100}%`;
 
@@ -1147,7 +971,6 @@ if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
                         transform: 'translate(-2px, -2px)'
                       }}
                     >
-                      {/* Stylized custom arrow cursor */}
                       <svg 
                         width="14" 
                         height="18" 
@@ -1164,8 +987,6 @@ if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
                           strokeLinejoin="round"
                         />
                       </svg>
-
-                      {/* Display name tag of drawing classmate */}
                       <span 
                         className="text-[8px] font-bold text-slate-950 px-1 py-0.5 mt-1 rounded shadow-sm border font-mono select-none"
                         style={{ backgroundColor: pc.color, borderColor: '#ffffff' }}
@@ -1176,34 +997,15 @@ if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
                   );
                 })}
               </div>
-
-              {/* Offline fallback Overlay */}
-              {connectionStatus === 'disconnected' && (
-                <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-xs flex flex-col items-center justify-center p-4 z-40 text-center">
-                  <div className="w-12 h-12 rounded-full border border-red-500/30 bg-red-500/10 flex items-center justify-center mb-3">
-                    <Trash2 className="h-6 w-6 text-red-400" />
-                  </div>
-                  <h4 className="text-sm font-black uppercase text-slate-100 font-sans">WebSocket Server Disconnected</h4>
-                  <p className="text-xs text-slate-400 mt-1 max-w-sm font-sans font-normal">
-                    Could not connect to the real-time node. Please refresh to start server.ts, or verify if the developer server is fully booted.
-                  </p>
-                  <button
-                    onClick={() => connectToRoom(activeRoom.id)}
-                    className="mt-4 px-4 py-2 bg-blue-600 text-white hover:bg-blue-500 text-xs font-bold rounded-lg transition-all"
-                  >
-                    Reinitialize Secure Connection
-                  </button>
-                </div>
-              )}
             </div>
 
             {/* Instruction tooltip */}
             <div className="bg-slate-950/40 p-2 border-t border-white/8 flex items-center justify-between text-left shrink-0 font-sans text-[10px]">
               <div className="text-slate-400">
-                ✏️ Drag or touch to sketch on standard <span className="font-mono text-cyan-400 font-bold">800x480</span> aspect-locked canvas. Stroke coordinates and eraser points broadcast live!
+                ✏️ Drag or touch to sketch on standard <span className="font-mono text-cyan-400 font-bold">800x480</span> aspect-locked canvas. Standalone local sandbox mode.
               </div>
               <div className="text-cyan-400 font-bold hidden sm:block">
-                ● Canvas Synchronized
+                ● Sandbox Enabled
               </div>
             </div>
 
@@ -1285,12 +1087,11 @@ if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
               onChange={(e) => setChatInput(e.target.value)}
               placeholder="Post a study question..."
               maxLength={250}
-              disabled={connectionStatus !== 'connected'}
-              className="flex-1 bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500 disabled:opacity-60"
+              className="flex-1 bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
             />
             <button
               type="submit"
-              disabled={connectionStatus !== 'connected' || !chatInput.trim()}
+              disabled={!chatInput.trim()}
               className="p-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 text-white disabled:text-slate-550 transition-colors flex items-center justify-center shrink-0 cursor-pointer"
             >
               <Send className="h-3.5 w-3.5" />
@@ -1304,3 +1105,5 @@ if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
     </div>
   );
 }
+
+```
