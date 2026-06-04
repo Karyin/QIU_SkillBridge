@@ -232,10 +232,10 @@ export default function StudyRoomView({ studentProfile, onNavigate }: StudyRoomV
   setBotsEnabled(false);
 
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const socketUrl = `${protocol}//${window.location.host}`;
+const socketUrl = `${protocol}//${window.location.host}`;
 
-  const ws = new WebSocket(socketUrl);
-  socketRef.current = ws;
+const ws = new WebSocket(socketUrl);
+socketRef.current = ws;
 
   ws.onopen = () => {
     if (socketRef.current === ws) {
