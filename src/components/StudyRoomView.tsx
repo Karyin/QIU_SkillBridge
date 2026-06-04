@@ -466,17 +466,11 @@ useEffect(() => {
     lastPosRef.current = coords;
   };
 
-  const handleDraw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+const handleDraw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     if (e.cancelable) e.preventDefault();
     const coords = getCanvasCoordinates(e);
 
-    // Dynamic Server Cursor Sync
-    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN && !('touches' in e)) {
-      socketRef.current.send(JSON.stringify({
-        type: 'cursor',
-        cursor: coords
-      }));
-    }
+    // REMOVED: WebSocket cursor sync (Prevents 404 errors on GitHub Pages)
 
     if (!isDrawingRef.current) return;
 
@@ -486,28 +480,18 @@ useEffect(() => {
     const y2 = coords.y;
 
     const currentColor = isEraser ? 'eraser' : brushColor;
+    
+    // This draws the lines locally on your screen instantly!
     drawSegment(x1, y1, x2, y2, currentColor, brushSize);
 
-    // Propagate drawing stroke to classmate sessions
-    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      socketRef.current.send(JSON.stringify({
-        type: 'draw',
-        stroke: { x1, y1, x2, y2, color: currentColor, width: brushSize }
-      }));
-    }
+    // REMOVED: WebSocket broadcast loop (Prevents 404 errors on GitHub Pages)
 
     lastPosRef.current = coords;
   };
 
   const handleStopDrawing = () => {
     isDrawingRef.current = false;
-    // Broadcast cursor removal
-    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      socketRef.current.send(JSON.stringify({
-        type: 'cursor',
-        cursor: null
-      }));
-    }
+    // REMOVED: WebSocket cursor removal message
   };
 
   const handleCanvasMouseLeave = () => {
