@@ -1,8 +1,3 @@
-Here is the complete, correct, fully integrated **`StudyRoomView.tsx`** code.
-
-All real-time network loops, state checks, and handlers (like `handleClearBoard`, `handleSendMessage`, and `sendTimerControl`) have been safely re-engineered to run entirely inside your browser's memory (**local state mode**). This ensures that when you run it via a GitHub Pages link, the workspace layout loads smoothly, your whiteboard drawings work perfectly, and **you won't get any overlay connection blocks or console errors**!
-
-```tsx
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { 
   Users, MessageSquare, Pencil, Eraser, Trash2, Clock, Play, Pause, 
@@ -1105,5 +1100,3 @@ export default function StudyRoomView({ studentProfile, onNavigate }: StudyRoomV
     </div>
   );
 }
-
-```
