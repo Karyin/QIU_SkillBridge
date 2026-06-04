@@ -174,7 +174,7 @@ export default function App() {
   useEffect(() => {
     const hasUnwanted = tutors.some(t => {
       const nameClean = t.name.trim().toLowerCase();
-      return nameClean === 'iky' || nameClean === 'i' || nameClean === '';
+      return nameClean === 'iky' && nameClean === 'i' && nameClean === '';
     });
     if (hasUnwanted) {
       setTutors(prev => prev.filter(t => {
@@ -606,7 +606,7 @@ export default function App() {
     addToast(`Welcome ${newTutorData.name}! Your professional Peer Tutor Card is active. ✨`, 'success');
   };
 
-  const handleEditTutor = (updatedTutor: Tutor) => {
+  const handleModifyTutorCard = (updatedTutor: Tutor) => {
     // Also sync the details back to student profile
     setStudentProfile(prev => ({
       ...prev,
@@ -734,7 +734,7 @@ export default function App() {
             {currentView === 'become-tutor' && (
               <BecomeTutorView 
                 onRegisterTutor={handleRegisterTutor}
-                onEditTutor={handleEditTutor}
+                onEditTutor={handleModifyTutorCard}
                 onDeleteTutor={handleDeleteTutor}
                 onNavigate={handleNavigate}
                 studentProfile={studentProfile}
@@ -840,6 +840,7 @@ export default function App() {
           { id: 'search', label: 'Tutors', icon: Search },
           { id: 'community', label: 'Community', icon: Globe },
           { id: 'messages', label: 'Messages', icon: MessageSquare },
+          { id: 'study-room', label: 'Room', icon: GraduationCap }, // Added dynamic quick access link to whiteboards panel
           { id: 'my-bookings', label: 'Bookings', icon: Calendar, badge: bookings.filter(b => b.status === 'upcoming').length },
           { id: 'my-profile', label: 'Profile', icon: User }
         ].map(item => {
